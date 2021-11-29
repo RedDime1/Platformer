@@ -7,39 +7,66 @@ import com.badlogic.gdx.Application.ApplicationType
 import com.badlogic.gdx.Gdx
 
 import platformer.game.model.Player
-
-import platformer.game.controller.WorldController
-import platformer.game.model.GWorld
-import platformer.game.view.WorldRenderer
+import platformer.game.model.World
 import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.GL30
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 
+import com.badlogic.gdx.graphics.Texture
 
+import com.badlogic.gdx.graphics.g2d.SpriteBatch
 
-
-
-
-
+import com.badlogic.gdx.graphics.OrthographicCamera
+import com.badlogic.gdx.utils.viewport.Viewport
 
 
 class GameScreen : Screen, InputProcessor{
-    private var GWorld: GWorld? = null
-    private var renderer: WorldRenderer? = null
-    private var controller: WorldController? = null
+    var cam: OrthographicCamera? = null
 
-    private var width = 0
-    private  var height = 0
+    //ShapeRenderer renderer = new ShapeRenderer();
+    var world: World? = null
+    private var spriteBatch: SpriteBatch? = null
+    var texture: Texture? = null
+    var textureRegions: MutableMap<String, TextureRegion> = HashMap()
+
+    var width = 0
+    var height = 0
 
     override fun show() {
-        GWorld = GWorld()
-        renderer = WorldRenderer(GWorld)
-        controller = WorldController(GWorld!!)
-        Gdx.input.inputProcessor = this
+        World.CAMERA_WIDTH = World.CAMERA_HEIGHT * Gdx.graphics.width / Gdx.graphics.height
+        cam = OrthographicCamera(World.CAMERA_WIDTH, World.CAMERA_HEIGHT)
+        SetCamera(World.CAMERA_WIDTH / 2f, World.CAMERA_HEIGHT / 2f)
+        spriteBatch = SpriteBatch()
+        loadTextures()
+        world = World(Gdx.graphics.width, Gdx.graphics.height, false, spriteBatch, textureRegions)
+        Gdx.input.inputProcessor = world
+    }
+
+    private fun loadTextures() {
+        texture = Texture(Gdx.files.internal("images/atlas (1).png"))
+        var tmpLeftRight = TextureRegion.split(texture, texture!!.width / 2, texture!!.height / 2)
+        val left2 = tmpLeftRight[0][0].split(
+            tmpLeftRight[0][0].regionWidth / 2,
+            tmpLeftRight[0][0].regionHeight
+        )
+        val left = left2[0][0].split(left2[0][0].regionWidth / 4, left2[0][0].regionHeight / 8)
+        textureRegions.put("player", left[0][0])
+        textureRegions.put("brick1", left[0][1])
+        textureRegions.put("brick2", left[1][0])
+        textureRegions.put("brick3", left[1][1])
+        textureRegions.put("navigation-arrows", tmpLeftRight[0][1])
+        val rightbot = tmpLeftRight[1][1].split(
+            tmpLeftRight[1][1].regionWidth / 2,
+            tmpLeftRight[1][1].regionHeight / 2
+        )
+        textureRegions.put("khob", rightbot[0][1])
     }
 
     override fun touchDragged(x: Int, y: Int, pointer: Int): Boolean {
-        ChangeNavigation(x, y)
+        //ChangeNavigation(x,y);
         return false
     }
+
 
     fun touchMoved(x: Int, y: Int): Boolean {
         return false
@@ -57,10 +84,21 @@ class GameScreen : Screen, InputProcessor{
         return false
     }
 
+    fun SetCamera(x: Float, y: Float) {
+        cam!!.position[x, y] = 0f
+        cam!!.update()
+    }
+
     override fun resize(width: Int, height: Int) {
-        renderer!!.setSize(width, height)
         this.width = width
         this.height = height
+        world!!.setViewport(object : Viewport(){
+            init {
+                screenWidth=width
+                screenHeight=height
+                super.update(width, height, true)
+            }
+        })
     }
 
     override fun hide() {
@@ -81,34 +119,23 @@ class GameScreen : Screen, InputProcessor{
     }
 
     override fun render(delta: Float) {
-        Gdx.gl.glClearColor(1f, 1f, 1f, 1f)
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
-        controller!!.update(delta)
-        renderer!!.render()
+        Gdx.gl.glClearColor(232f / 255, 232f / 255, 232f / 255, 232f / 255)
+        Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT)
+        world!!.update(delta)
+        world!!.draw()
     }
 
     override fun keyUp(keycode: Int): Boolean {
         return true
     }
 
-    private fun ChangeNavigation(x: Int, y: Int) {
-        controller!!.resetWay()
-        if (height - y > controller!!.player!!.getPosition().y * renderer!!.ppuY) controller!!.upPressed()
-        if (height - y < controller!!.player!!.getPosition().y * renderer!!.ppuY) controller!!.downPressed()
-        if (x < controller!!.player!!.getPosition().x * renderer!!.ppuX) controller!!.leftPressed()
-        if (x > (controller!!.player!!.getPosition().x + Player.SIZE) * renderer!!.ppuX) controller!!.rightPressed()
-    }
-
     override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
-        if (Gdx.app.type != ApplicationType.Android) return false
-        ChangeNavigation(x, y)
-        return true
+        return if (Gdx.app.type != ApplicationType.Android) false else true
+        //ChangeNavigation(x,y);
     }
 
     override fun touchUp(x: Int, y: Int, pointer: Int, button: Int): Boolean {
-        if (Gdx.app.type != ApplicationType.Android) return false
-        controller!!.resetWay()
-        return true
+        return if (Gdx.app.type != ApplicationType.Android) false else true
+        //controller.resetWay();
     }
-
 }
