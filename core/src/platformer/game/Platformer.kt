@@ -19,5 +19,6 @@ class Platformer : Game() {
         setScreen(game)
     }
     fun goHome() {}
+
     override fun resize(width: Int, height: Int) {}
 }
